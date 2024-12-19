@@ -1,12 +1,14 @@
 ﻿using ImageMagick;
+using TagLib;
 
 namespace MetadataConverter
 {
 
     internal class Program
     {
-        private const string TEXT_CHANGED = "Converted from PNG to JPEG";
-        private const string TEXT_NO_CHANGE = "No change necessary";
+        private const string TEXT_CONVERTED = "Converted from PNG to JPEG";
+        private const string TEXT_RESIZED = "Resized to fit 300x300";
+        private const string TEXT_NO_CONVERT = "No conversion necessary";
 
         private static readonly string[] EXTENSIONS =
             [
@@ -18,18 +20,55 @@ namespace MetadataConverter
             ".alac"
             ];
 
-        static void Main(string[] args)
+        private static bool NO_CROP;
+
+        static int Main(string[] args)
         {
             MagickNET.Initialize();
 
-            if (args.Length == 0)
+            int len = args.Length;
+
+            if (len == 0)
             {
                 Recurse(Directory.GetCurrentDirectory());
             }
-            else if (Directory.Exists(args[0]))
+            else if (len == 1)
             {
+                if (args[0] == "--nocrop")
+                {
+                    NO_CROP = true;
+                }
+
+                if (!Directory.Exists(args[0]))
+                {
+                    Console.WriteLine($"Provided directory doesn't exist. Dir: '{args[0]}'");
+                    return 1;
+                }
+
                 Recurse(args[0]);
             }
+            else if (len == 2)
+            {
+                if (args[0] == "--nocrop")
+                {
+                    NO_CROP = true;
+                }
+                else
+                {
+                    Console.WriteLine("Incorrect argument.\nExpected format:\n\t'[--nocrop] [directory]'");
+                    return 1;
+                }
+
+                if (!Directory.Exists(args[1]))
+                {
+                    Console.WriteLine($"Provided directory doesn't exist. Dir: '{args[1]}'");
+                    return 1;
+                }
+
+                Recurse(args[1]);
+            }
+
+            return 0;
         }
 
         static void Recurse(string directory)
@@ -53,30 +92,47 @@ namespace MetadataConverter
             var tfile = TagLib.File.Create(filename);
             string title = tfile.Tag.Title;
 
-            bool changed = false;
+            bool converted = false;
+            bool resized = false;
             Console.WriteLine("=====================");
 
-            foreach (var image in tfile.Tag.Pictures)
+            foreach (var tagImage in tfile.Tag.Pictures)
             {
-                Console.WriteLine($"image type: {image.MimeType["image/".Length..]}");
-                if (image.Type == TagLib.PictureType.FrontCover && image.MimeType == "image/png")
+                Console.WriteLine($"image type: {tagImage.MimeType["image/".Length..]}");
+                if (tagImage.Type == PictureType.FrontCover)
                 {
-                    changed = true;
-                    using var img = new MagickImage(image.Data.Data);
+                    var img = new MagickImage(tagImage.Data.Data);
 
-                    img.Format = MagickFormat.Jpeg;
-                    if (img.Width > 300)
+                    if (tagImage.MimeType == "image/png")
                     {
-                        img.Resize(300, 300);
+                        converted = true;
+                        img.Format = MagickFormat.Jpeg;
+                        tagImage.MimeType = "image/jpeg";
                     }
 
-                    image.Data = img.ToByteArray();
-                    image.MimeType = "image/jpeg";
+                    if (img.Width > 300)
+                    {
+                        resized = true;
+                        img.Resize(300, 300);
+
+                        if (!NO_CROP && (img.Width != img.Height))
+                        {
+                            img.Crop(300, 300);
+                            img.ResetPage();
+                        }
+
+                    }
+
+                    if (converted || resized)
+                    {
+                        tagImage.Data = new ByteVector(img.ToByteArray());
+                    }
+                    img.Dispose();
                     break;
                 }
             }
 
-            Console.WriteLine($"Parsed '{filename}' " + (changed ? TEXT_CHANGED : TEXT_NO_CHANGE));
+            Console.WriteLine($"Parsed '{filename}' " + (converted ? TEXT_CONVERTED : TEXT_NO_CONVERT) + ". " + (resized ? TEXT_RESIZED : string.Empty));
             Console.WriteLine();
 
             tfile.Save();
