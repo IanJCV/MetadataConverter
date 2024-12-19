@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>False</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StartupObject>MetadataConverter.Program</StartupObject>
+    <ApplicationIcon>icon_me.ico</ApplicationIcon>
+    <PublishTrimmed>False</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="icon_me.ico" />
+  </ItemGroup>
+	<PropertyGroup>
+		<LinkerConfigFile>linker.xml</LinkerConfigFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>true</PublishSingleFile>
+		<PublishTrimmed>false</PublishTrimmed>
+	</PropertyGroup>
+	
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-x64" Version="14.2.0" />
+    <PackageReference Include="Magick.NET.Core" Version="14.2.0" />
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+  </ItemGroup>
+
+</Project>
